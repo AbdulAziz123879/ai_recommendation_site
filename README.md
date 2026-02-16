@@ -37,7 +37,7 @@ Simply visit the live site in your web browser—no installation required! Just 
 
 1. **Clone the repository**
 ```bash
-   git clone https://github.com/yourusername/ai_recommendation_site.git
+   git clone https://https://github.com/AbdulAziz123879/ai_recommendation_site
    cd ai_recommendation_site
 ```
 
