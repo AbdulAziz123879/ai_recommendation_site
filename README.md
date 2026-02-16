@@ -31,7 +31,7 @@ Our mission is to make AI technology accessible and easy to understand for every
 
 ### View Online
 
-Simply visit the live site in your web browser—no installation required! Just open the `index.html` file or access the GitHub Pages link if hosted online.
+Simply visit the live site in your web browser—no installation required! Just open the `search-ai-tools.netlify.app` file or access the GitHub Pages link if hosted online.
 
 ### Download & Run Locally
 
