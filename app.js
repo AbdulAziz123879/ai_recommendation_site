@@ -15,7 +15,8 @@ const Icon = ({ name, className = "w-5 h-5" }) => {
     check: <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>,
     zap: <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>,
     users: <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>,
-    trending: <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>
+    trending: <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>,
+    x: <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
   };
   return icons[name] || null;
 };
@@ -29,9 +30,24 @@ const App = () => {
   const [bookmarks, setBookmarks] = useState([]);
   const [compareList, setCompareList] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [homeSearch, setHomeSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All Categories');
+  const [pricingFilter, setPricingFilter] = useState('All Prices');
   const [sortBy, setSortBy] = useState('rating');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+
+  React.useEffect(() => {
+    const handleScroll = () => {
+      setShowScrollTop(window.scrollY > 400);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const getRecommendations = () => {
     let filtered = [...window.aiToolsDatabase];
@@ -95,10 +111,25 @@ const App = () => {
       filtered = filtered.filter(tool => tool.category === selectedCategory);
     }
     
+    if (pricingFilter !== 'All Prices') {
+      if (pricingFilter === 'Free') {
+        filtered = filtered.filter(tool => tool.pricing.toLowerCase().includes('free') && !tool.pricing.toLowerCase().includes('/mo') || tool.pricing.toLowerCase() === 'free');
+      } else if (pricingFilter === 'Freemium') {
+        filtered = filtered.filter(tool => tool.pricing.toLowerCase().includes('free') && tool.pricing.toLowerCase().includes('/mo'));
+      } else if (pricingFilter === 'Paid') {
+        filtered = filtered.filter(tool => !tool.pricing.toLowerCase().includes('free'));
+      }
+    }
+    
     if (searchQuery) {
+      const q = searchQuery.toLowerCase();
       filtered = filtered.filter(tool => 
-        tool.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        tool.description.toLowerCase().includes(searchQuery.toLowerCase())
+        tool.name.toLowerCase().includes(q) ||
+        tool.description.toLowerCase().includes(q) ||
+        tool.useCase.toLowerCase().includes(q) ||
+        tool.category.toLowerCase().includes(q) ||
+        tool.features.some(f => f.toLowerCase().includes(q)) ||
+        tool.industries.some(i => i.toLowerCase().includes(q))
       );
     }
     
@@ -117,6 +148,15 @@ const App = () => {
   const Navigation = () => (
     <nav>
       <div className="nav-container">
+        {currentPage !== 'home' && (
+          <button 
+            onClick={() => setCurrentPage('home')} 
+            className="back-btn"
+            aria-label="Go back"
+          >
+            <Icon name="arrowLeft" className="back-btn-icon" />
+          </button>
+        )}
         <div className="nav-logo" onClick={() => setCurrentPage('home')}>
           <Icon name="sparkles" className="nav-logo-icon" />
           <span className="nav-logo-text">AI Tools Finder</span>
@@ -150,8 +190,8 @@ const App = () => {
   );
 
   // Tool Card Component
-  const ToolCard = ({ tool, showCompare = false }) => (
-    <div className="tool-card">
+  const ToolCard = ({ tool, showCompare = false, keyProp }) => (
+    <div key={keyProp || tool.id} className="tool-card">
       <div className="tool-header">
         <div className="tool-info">
           <div className="tool-logo">{tool.logo}</div>
@@ -202,32 +242,55 @@ const App = () => {
     </div>
   );
 
-  // Home Page
-  const HomePage = () => (
+  const HomePage = () => {
+    const handleHomeSearch = (e) => {
+      e.preventDefault();
+      if (homeSearch.trim()) {
+        setSearchQuery(homeSearch);
+        setCurrentPage('browse');
+      }
+    };
+
+    return (
     <div className="gradient-bg">
       <div className="max-w-7xl px-4 py-20">
         <div className="text-center mb-16">
           <h1 className="hero-title">Discover Your Perfect AI Tools</h1>
           <p className="hero-subtitle">
-            Answer a few questions and get personalized AI tool recommendations tailored to your needs, industry, and budget.
+            Search our curated database of AI tools or answer a few questions to get personalized recommendations tailored to your needs.
           </p>
+          
+          <div className="hero-search-container magic-glow magic-glow-strong mb-12">
+            <form onSubmit={handleHomeSearch} className="hero-search-form">
+              <Icon name="search" className="hero-search-icon" />
+              <input 
+                type="text" 
+                placeholder="Search by name, feature, use case..." 
+                value={homeSearch}
+                onChange={(e) => setHomeSearch(e.target.value)}
+                className="hero-search-input"
+              />
+              <button type="submit" className="hero-search-btn">Search</button>
+            </form>
+          </div>
+
           <button onClick={() => setCurrentPage('quiz')} className="hero-cta">
             Start Quiz <Icon name="chevronRight" />
           </button>
         </div>
         
         <div className="grid grid-cols-1 md-grid-cols-3 gap-8 mb-16">
-          <div className="feature-card">
+          <div className="feature-card magic-glow">
             <Icon name="zap" className="feature-icon text-purple" />
             <h3 className="feature-title">Smart Recommendations</h3>
             <p className="feature-description">Get personalized AI tool suggestions based on your specific needs and preferences</p>
           </div>
-          <div className="feature-card">
+          <div className="feature-card magic-glow">
             <Icon name="users" className="feature-icon text-blue" />
             <h3 className="feature-title">Community Trusted</h3>
             <p className="feature-description">Read real reviews and ratings from thousands of AI tool users</p>
           </div>
-          <div className="feature-card">
+          <div className="feature-card magic-glow">
             <Icon name="trending" className="feature-icon text-pink" />
             <h3 className="feature-title">Always Updated</h3>
             <p className="feature-description">Stay current with the latest AI tools and technologies in the market</p>
@@ -238,7 +301,7 @@ const App = () => {
           <h2 className="section-title text-center">Featured AI Tools</h2>
           <div className="grid grid-cols-1 md-grid-cols-3 gap-6 mb-8">
             {window.aiToolsDatabase.slice(0, 6).map(tool => (
-              <ToolCard key={tool.id} tool={tool} />
+              ToolCard({ tool, showCompare: true, keyProp: tool.id })
             ))}
           </div>
           <div className="text-center">
@@ -249,7 +312,8 @@ const App = () => {
         </div>
       </div>
     </div>
-  );
+    );
+  };
 
   // Quiz Page
   const QuizPage = () => (
@@ -308,10 +372,19 @@ const App = () => {
           <p className="section-subtitle">Based on your preferences, here are the best AI tools for you</p>
           <button onClick={() => setCurrentPage('quiz')} className="btn-link">Retake Quiz</button>
         </div>
+
+        {compareList.length > 0 && (
+          <div className="compare-banner">
+            <span className="compare-banner-text">{compareList.length} tool(s) selected for comparison</span>
+            <button onClick={() => setCurrentPage('compare')} className="compare-banner-btn">
+              Compare Now
+            </button>
+          </div>
+        )}
         
         <div className="grid grid-cols-1 md-grid-cols-2 lg-grid-cols-3 gap-6 mb-12">
           {recommendations.map(tool => (
-            <ToolCard key={tool.id} tool={tool} showCompare={true} />
+            ToolCard({ tool, showCompare: true, keyProp: tool.id })
           ))}
         </div>
         
@@ -346,16 +419,26 @@ const App = () => {
           
           <div className="filter-section">
             <div className="filter-grid">
-              <div className="search-input-wrapper">
+              <form onSubmit={(e) => e.preventDefault()} className="search-input-wrapper">
                 <Icon name="search" className="search-icon" />
                 <input
                   type="text"
-                  placeholder="Search tools..."
+                  placeholder="Search tools, features, use cases..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="search-input"
                 />
-              </div>
+                {searchQuery && (
+                  <button 
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="search-clear-btn"
+                    aria-label="Clear search"
+                  >
+                    <Icon name="x" className="icon-xs" />
+                  </button>
+                )}
+              </form>
               
               <select
                 value={selectedCategory}
@@ -365,6 +448,17 @@ const App = () => {
                 {window.categories.map(cat => (
                   <option key={cat} value={cat}>{cat}</option>
                 ))}
+              </select>
+              
+              <select
+                value={pricingFilter}
+                onChange={(e) => setPricingFilter(e.target.value)}
+                className="filter-select"
+              >
+                <option value="All Prices">All Prices</option>
+                <option value="Free">Free Only</option>
+                <option value="Freemium">Freemium (Free + Premium)</option>
+                <option value="Paid">Paid Only</option>
               </select>
               
               <select
@@ -390,7 +484,7 @@ const App = () => {
           
           <div className="grid grid-cols-1 md-grid-cols-2 lg-grid-cols-3 gap-6">
             {filteredTools.map(tool => (
-              <ToolCard key={tool.id} tool={tool} showCompare={true} />
+              ToolCard({ tool, showCompare: true, keyProp: tool.id })
             ))}
           </div>
           
@@ -408,96 +502,189 @@ const App = () => {
   const ComparePage = () => {
     const compareTools = window.aiToolsDatabase.filter(tool => compareList.includes(tool.id));
     
+    const renderRatingStars = (rating) => {
+      const fullStars = Math.floor(rating);
+      const hasHalfStar = rating % 1 >= 0.5;
+      return (
+        <div className="flex items-center justify-center gap-1">
+          {[...Array(5)].map((_, i) => (
+            <Icon 
+              key={i} 
+              name="star" 
+              className={`star-icon ${i < fullStars ? 'star-filled' : i === fullStars && hasHalfStar ? 'star-half' : 'star-empty'}`} 
+            />
+          ))}
+        </div>
+      );
+    };
+    
     return (
-      <div className="min-h-screen page-section">
+      <div className="min-h-screen page-section compare-page-bg">
         <div className="max-w-7xl px-4">
-          <div className="flex items-center justify-between mb-8">
-            <h1 className="section-title mb-0">Compare AI Tools</h1>
-            <button onClick={() => setCompareList([])} className="btn-link">
-              Clear All
-            </button>
-          </div>
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <h1 className="section-title mb-2">Compare AI Tools</h1>
+                <p className="text-gray">Side-by-side comparison of {compareTools.length} selected tool{compareTools.length !== 1 ? 's' : ''}</p>
+              </div>
+              <button onClick={() => setCompareList([])} className="btn-link">
+                Clear All
+              </button>
+            </div>
           
           {compareTools.length === 0 ? (
             <div className="empty-state">
+              <Icon name="sparkles" className="empty-state-icon" />
               <p className="empty-state-text">No tools selected for comparison</p>
+              <p className="empty-state-subtext">Select up to 3 tools from the browse page to compare them side-by-side</p>
               <button onClick={() => setCurrentPage('browse')} className="btn btn-primary mt-4">
                 Browse Tools
               </button>
             </div>
           ) : (
-            <div className="compare-table-wrapper">
-              <table className="compare-table">
-                <thead>
-                  <tr>
-                    <th>Feature</th>
-                    {compareTools.map(tool => (
-                      <th key={tool.id} className="text-center">
-                        <div className="compare-tool-header">
-                          <div className="compare-tool-icon">{tool.logo}</div>
-                          <div className="compare-tool-name">{tool.name}</div>
-                          <button onClick={() => toggleCompare(tool.id)} className="compare-remove-btn">
-                            Remove
-                          </button>
-                        </div>
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td className="font-medium">Category</td>
-                    {compareTools.map(tool => (
-                      <td key={tool.id} className="text-center text-gray">{tool.category}</td>
-                    ))}
-                  </tr>
-                  <tr>
-                    <td className="font-medium">Rating</td>
-                    {compareTools.map(tool => (
-                      <td key={tool.id} className="text-center">
-                        <div className="flex items-center justify-center gap-1">
-                          <Icon name="star" className="star-icon star-filled" />
-                          <span className="font-semibold">{tool.rating}</span>
-                        </div>
-                      </td>
-                    ))}
-                  </tr>
-                  <tr>
-                    <td className="font-medium">Pricing</td>
-                    {compareTools.map(tool => (
-                      <td key={tool.id} className="text-center text-green font-medium">{tool.pricing}</td>
-                    ))}
-                  </tr>
-                  <tr>
-                    <td className="font-medium">Reviews</td>
-                    {compareTools.map(tool => (
-                      <td key={tool.id} className="text-center text-gray">{tool.reviews.toLocaleString()}</td>
-                    ))}
-                  </tr>
-                  <tr>
-                    <td className="font-medium">Features</td>
-                    {compareTools.map(tool => (
-                      <td key={tool.id}>
-                        <ul style={{fontSize: '0.875rem', color: '#4b5563', padding: '0 1rem'}}>
-                          {tool.features.map((feature, idx) => (
-                            <li key={idx}>• {feature}</li>
+            <div className="compare-layout">
+              <main className="compare-main flex-1 min-w-0">
+                <div className="compare-table-wrapper">
+                  <table className="compare-table">
+                    <thead>
+                      <tr>
+                        <th className="compare-feature-col">Feature</th>
+                        {compareTools.map(tool => (
+                          <th key={tool.id} className="compare-tool-col">
+                            <div className="compare-tool-header">
+                              <div className="compare-tool-logo-wrapper">
+                                <div className="compare-tool-icon">{tool.logo}</div>
+                              </div>
+                              <div className="compare-tool-info">
+                                <div className="compare-tool-name">{tool.name}</div>
+                                <div className="compare-tool-category">{tool.category}</div>
+                              </div>
+                              <button onClick={() => toggleCompare(tool.id)} className="compare-remove-btn" title="Remove from comparison">
+                                <span>Remove</span>
+                              </button>
+                            </div>
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    
+                    <tbody id="toc-overview">
+                      <tr className="compare-row-highlight">
+                        <td className="compare-feature-label">
+                          <Icon name="star" className="compare-feature-icon" />
+                          <span>Rating & Reviews</span>
+                        </td>
+                        {compareTools.map(tool => (
+                          <td key={tool.id} className="compare-cell">
+                            <div className="compare-rating-section">
+                              {renderRatingStars(tool.rating)}
+                              <div className="compare-rating-value">{tool.rating} / 5.0</div>
+                              <div className="compare-rating-count">{tool.reviews.toLocaleString()} reviews</div>
+                            </div>
+                          </td>
+                        ))}
+                      </tr>
+                    </tbody>
+                    
+                    <tbody id="toc-pricing">
+                      <tr>
+                        <td className="compare-feature-label">
+                          <Icon name="dollar" className="compare-feature-icon" />
+                          <span>Pricing</span>
+                        </td>
+                        {compareTools.map(tool => (
+                          <td key={tool.id} className="compare-cell">
+                            <div className="compare-pricing-badge">
+                              {tool.pricing}
+                            </div>
+                          </td>
+                        ))}
+                      </tr>
+                    </tbody>
+                    
+                    <tbody id="toc-features">
+                      <tr>
+                        <td className="compare-feature-label">
+                          <Icon name="sparkles" className="compare-feature-icon" />
+                          <span>Key Features</span>
+                        </td>
+                        {compareTools.map(tool => (
+                          <td key={tool.id} className="compare-cell">
+                            <ul className="compare-features-list">
+                              {tool.features.map((feature, idx) => (
+                                <li key={idx} className="compare-feature-item">
+                                  <Icon name="check" className="compare-check-icon" />
+                                  {feature}
+                                </li>
+                              ))}
+                            </ul>
+                          </td>
+                        ))}
+                      </tr>
+                    </tbody>
+
+                    <tbody id="toc-audience">
+                        <tr className="compare-row-highlight">
+                          <td className="compare-feature-label">
+                            <Icon name="zap" className="compare-feature-icon" />
+                            <span>Use Case</span>
+                          </td>
+                          {compareTools.map(tool => (
+                            <td key={tool.id} className="compare-cell">
+                              <div className="compare-use-case">{tool.useCase}</div>
+                            </td>
                           ))}
-                        </ul>
-                      </td>
-                    ))}
-                  </tr>
-                  <tr>
-                    <td className="font-medium">Action</td>
-                    {compareTools.map(tool => (
-                      <td key={tool.id} className="text-center">
-                        <a href={tool.url} target="_blank" rel="noopener noreferrer" className="btn btn-primary">
-                          Visit Tool
-                        </a>
-                      </td>
-                    ))}
-                  </tr>
-                </tbody>
-              </table>
+                        </tr>
+                        
+                        <tr>
+                          <td className="compare-feature-label">
+                            <Icon name="users" className="compare-feature-icon" />
+                            <span>Experience Level</span>
+                          </td>
+                          {compareTools.map(tool => (
+                            <td key={tool.id} className="compare-cell">
+                              <div className="compare-badges">
+                                {tool.experienceLevel.map((level, idx) => (
+                                  <span key={idx} className={`compare-badge compare-badge-${level}`}>
+                                    {level.charAt(0).toUpperCase() + level.slice(1)}
+                                  </span>
+                                ))}
+                              </div>
+                            </td>
+                          ))}
+                        </tr>
+                        
+                        <tr className="compare-row-highlight">
+                          <td className="compare-feature-label">
+                            <Icon name="trending" className="compare-feature-icon" />
+                            <span>Industries</span>
+                          </td>
+                          {compareTools.map(tool => (
+                            <td key={tool.id} className="compare-cell">
+                              <div className="compare-badges">
+                                {tool.industries.map((industry, idx) => (
+                                  <span key={idx} className="compare-badge compare-badge-industry">
+                                    {industry.charAt(0).toUpperCase() + industry.slice(1)}
+                                  </span>
+                                ))}
+                              </div>
+                            </td>
+                          ))}
+                        </tr>
+                        <tr className="compare-row-action">
+                          <td className="compare-feature-label">Action</td>
+                          {compareTools.map(tool => (
+                            <td key={tool.id} className="compare-cell">
+                              <a href={tool.url} target="_blank" rel="noopener noreferrer" className="compare-visit-btn">
+                                <span>Visit Tool</span>
+                                <Icon name="chevronRight" className="icon-sm" />
+                              </a>
+                            </td>
+                          ))}
+                        </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </main>
             </div>
           )}
         </div>
@@ -713,18 +900,18 @@ const App = () => {
   // Render current page
   return (
     <div>
-      <Navigation />
+      {Navigation()}
       
-      {currentPage === 'home' && <HomePage />}
-      {currentPage === 'quiz' && <QuizPage />}
-      {currentPage === 'recommendations' && <RecommendationsPage />}
-      {currentPage === 'browse' && <BrowsePage />}
-      {currentPage === 'compare' && <ComparePage />}
-      {currentPage === 'about' && <AboutPage />}
-      {currentPage === 'blog' && <BlogPage />}
-      {currentPage === 'contact' && <ContactPage />}
+      {currentPage === 'home' && HomePage()}
+      {currentPage === 'quiz' && QuizPage()}
+      {currentPage === 'recommendations' && RecommendationsPage()}
+      {currentPage === 'browse' && BrowsePage()}
+      {currentPage === 'compare' && ComparePage()}
+      {currentPage === 'about' && AboutPage()}
+      {currentPage === 'blog' && BlogPage()}
+      {currentPage === 'contact' && ContactPage()}
       
-      <Footer />
+      {Footer()}
     </div>
   );
 };
